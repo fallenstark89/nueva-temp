@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Monitor de Temperatura - Áreas</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --primary-light: #34495e;
+            --primary-dark: #1a252f;
+            --secondary-color: #455a64;
+            --success-color: #27ae60;
+            --danger-color: #e74c3c;
+            --background-color: #f5f6fa;
+            --card-background: #ffffff;
+            --text-primary: #2c3e50;
+            --text-secondary: #7f8c8d;
+            --border-color: #e0e0e0;
+            --shadow-color: rgba(0, 0, 0, 0.1);
+        }
+
+        * {
+            -webkit-tap-highlight-color: transparent;
+            -webkit-overflow-scrolling: touch;
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            height: 100%;
+            width: 100%;
+            overflow: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-primary);
+            min-height: 100%;
+            width: 100%;
+            overflow-y: scroll;
+            -webkit-overflow-scrolling: touch;
+            position: relative;
+            overscroll-behavior-y: none;
+            line-height: 1.6;
+        }
+
+        .container {
+            width: 100%;
+            min-height: 100vh;
+            padding: 20px;
+            padding-bottom: 60px;
+            position: relative;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background-color: var(--primary-color);
+            color: white;
+            padding: 15px 20px;
+            text-align: center;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px var(--shadow-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+
+        .logo-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logo {
+            height: 80px;
+            width: auto;
+        }
+
+        .header-title {
+            flex-grow: 1;
+            text-align: center;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1.5em;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        .area-section {
+            margin-bottom: 25px;
+            background-color: var(--card-background);
+            border-radius: 12px;
+            box-shadow: 0 2px 4px var(--shadow-color);
+            overflow: hidden;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .area-section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px var(--shadow-color);
+        }
+
+        .area-header {
+            padding: 15px 20px;
+            color: white;
+            font-size: 1.2em;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+        }
+
+        .area-header.almacen { background-color: #3498db; }
+        .area-header.cocina-principal { background-color: #e67e22; }
+        .area-header.panaderia { background-color: #f1c40f; }
+        .area-header.cocina-timeout { background-color: #34495e; }
+        .area-header.cocina-banquete { background-color: #9b59b6; }
+
+        .sensors-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            padding: 20px;
+        }
+
+        .sensor-card {
+            background-color: var(--card-background);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px var(--shadow-color);
+            text-align: center;
+            min-height: 180px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            border: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .sensor-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px var(--shadow-color);
+        }
+
+        .sensor-id {
+            font-size: 1.1em;
+            font-weight: 500;
+            margin-bottom: 10px;
+            color: var(--text-primary);
+        }
+
+        .temperature-display {
+            font-size: 2.5em;
+            font-weight: 600;
+            margin: 10px 0;
+            transition: color 0.3s ease;
+            color: var(--primary-color);
+        }
+
+        .temperature-display.out-of-range {
+            color: var(--danger-color);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+
+        .status {
+            padding: 8px 12px;
+            border-radius: 20px;
+            margin-top: 10px;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            font-size: 0.9em;
+            background-color: var(--success-color);
+            color: white;
+            transition: all 0.3s ease;
+        }
+
+        .status.disconnected {
+            background-color: var(--danger-color);
+            animation: pulse 2s infinite;
+        }
+
+        .status.warning {
+            background-color: #f39c12;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+
+        .last-update {
+            color: var(--text-secondary);
+            font-size: 0.85em;
+            margin-top: 12px;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 20px;
+            margin-top: 30px;
+            color: var(--text-secondary);
+            font-size: 0.9em;
+            border-top: 1px solid var(--border-color);
+        }
+
+        /* Estilos para el modal de gráfica */
+        .graph-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+        }
+
+        .graph-modal.active {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 20px;
+        }
+
+        .graph-container {
+            background: var(--card-background);
+            border-radius: 12px;
+            padding: 25px;
+            width: 100%;
+            max-width: 900px;
+            margin: 20px auto;
+            box-shadow: 0 4px 20px var(--shadow-color);
+        }
+
+        .graph-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .graph-title {
+            font-size: 1.4em;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .close-button {
+            background: none;
+            border: none;
+            font-size: 1.5em;
+            cursor: pointer;
+            color: var(--text-secondary);
+            padding: 5px;
+            transition: color 0.3s ease;
+        }
+
+        .close-button:hover {
+            color: var(--primary-color);
+        }
+
+        .date-filters {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .date-input {
+            padding: 10px 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 1em;
+            color: var(--text-primary);
+            background-color: var(--card-background);
+            transition: border-color 0.3s ease;
+        }
+
+        .date-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        .filter-button {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 500;
+            transition: background-color 0.3s ease;
+        }
+
+        .filter-button:hover {
+            background-color: var(--primary-light);
+        }
+
+        .graph-canvas {
+            width: 100%;
+            height: 400px;
+            margin-top: 20px;
+        }
+
+        /* Estilos para dispositivos móviles */
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+
+            .sensors-grid {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+
+            .area-header {
+                font-size: 1.1em;
+                padding: 12px 15px;
+            }
+
+            .temperature-display {
+                font-size: 2.2em;
+            }
+
+            .sensor-card {
+                min-height: 160px;
+                padding: 15px;
+            }
+
+            .logo {
+                height: 40px;
+            }
+
+            h1 {
+                font-size: 1.3em;
+            }
+
+            .graph-container {
+                margin: 10px;
+                padding: 15px;
+            }
+
+            .date-filters {
+                flex-direction: column;
+            }
+
+            .date-input, .filter-button {
+                width: 100%;
+            }
+        }
+
+        /* Animación de splash screen */
+        .splash-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: var(--primary-color);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            animation: splashContainerFade 0s linear 3s forwards;
+        }
+
+        .splash-logo {
+            width: 200px;
+            height: auto;
+            opacity: 0;
+            transform: scale(0.7);
+            animation: logoSplashIn 1s cubic-bezier(.68,-0.55,.27,1.55) 0.2s forwards;
+        }
+
+        .splash-credit {
+            position: absolute;
+            bottom: 40px;
+            color: white;
+            font-size: 1.2em;
+            opacity: 0;
+            animation: creditSplashIn 1s ease-in-out 0.2s forwards;
+            letter-spacing: 1px;
+            font-weight: 500;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.25);
+            text-align: center;
+        }
+
+        @keyframes logoSplashIn {
+            from {
+                opacity: 0;
+                transform: scale(0.7);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        @keyframes creditSplashIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes splashFadeOutPro {
+            0% {
+                opacity: 1;
+                transform: scale(1);
+                filter: blur(0px);
+            }
+            60% {
+                opacity: 0.7;
+                transform: scale(0.98);
+                filter: blur(1px);
+            }
+            100% {
+                opacity: 0;
+                transform: scale(0.92);
+                filter: blur(6px);
+            }
+        }
+
+        @keyframes splashContainerFade {
+            to {
+                visibility: hidden;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Pantalla de splash -->
+    <div class="splash-screen">
+        <img src="/images/logo.png" alt="Logo" class="splash-logo">
+        <div class="splash-credit">
+            Sistema desarrollado por Aristides Martinez
+        </div>
+    </div>
+
+    <div class="container">
+        <header>
+            <div class="logo-container">
+                <img src="/images/logo.png" alt="Logo" class="logo" id="currentLogo">
+            </div>
+            <div class="header-title">
+                <h1>Monitor de Temperatura por Áreas</h1>
+            </div>
+            <button class="config-button" id="configButton">
+                <i class="fas fa-cog"></i>
+            </button>
+        </header>
+
+        <div class="overlay" id="overlay"></div>
+        <div class="config-menu" id="configMenu">
+            <!-- Opción de cambiar logo eliminada -->
+        </div>
+
+        <div id="areasContainer">
+            <!-- Las áreas se agregarán dinámicamente aquí -->
+        </div>
+    </div>
+
+    <div class="footer">
+        Sistema desarrollado por Aristides Martinez
+    </div>
+
+    <!-- Agregar el modal de gráfica -->
+    <div class="graph-modal" id="graphModal">
+        <div class="graph-container">
+            <div class="graph-header">
+                <div class="graph-title">Historial de Temperaturas</div>
+                <button class="close-button" id="closeGraphModal">&times;</button>
+            </div>
+            <div class="date-filters">
+                <input type="date" class="date-input" id="startDate">
+                <input type="date" class="date-input" id="endDate">
+                <button class="filter-button" id="filterButton">Filtrar</button>
+            </div>
+            <canvas class="graph-canvas" id="temperatureChart"></canvas>
+        </div>
+    </div>
+
+    <script>
+        // Configuración de áreas y sus sensores
+        const areas = {
+            'almacen': {
+                name: 'Almacén Principal',
+                icon: 'fa-warehouse',
+                sensors: [1, 2, 3, 4, 5, 6]
+            },
+            'cocina-principal': {
+                name: 'Cocina Principal',
+                icon: 'fa-utensils',
+                sensors: [7, 8, 9]
+            },
+            'panaderia': {
+                name: 'Panadería',
+                icon: 'fa-bread-slice',
+                sensors: [10, 11]
+            },
+            'cocina-timeout': {
+                name: 'Cocina Time Out',
+                icon: 'fa-clock',
+                sensors: [12, 13]
+            },
+            'cocina-banquete': {
+                name: 'Cocina Banquete',
+                icon: 'fa-glass-cheers',
+                sensors: [14, 15, 16]
+            }
+        };
+
+        // Función para manejar errores de carga de imagen
+        function handleImageError(img) {
+            console.error('Error al cargar la imagen:', img.src);
+            // Crear un logo por defecto con el texto
+            const canvas = document.createElement('canvas');
+            canvas.width = 200;
+            canvas.height = 200;
+            const ctx = canvas.getContext('2d');
+            
+            // Fondo
+            ctx.fillStyle = '#2c3e50';
+            ctx.fillRect(0, 0, 200, 200);
+            
+            // Texto
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 24px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('Monitor de', 100, 80);
+            ctx.fillText('Temperatura', 100, 120);
+            
+            // Actualizar la imagen con el canvas
+            img.src = canvas.toDataURL();
+        }
+
+        // Agregar manejadores de error a las imágenes del logo
+        window.addEventListener('load', () => {
+            const logos = document.querySelectorAll('img[src="/images/logo.png"]');
+            logos.forEach(logo => {
+                logo.onerror = () => handleImageError(logo);
+            });
+        });
+
+        // Función para formatear la fecha
+        function formatDate(date) {
+            return new Date(date).toLocaleString('es-ES', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+        }
+
+        // Variables para el gráfico
+        let temperatureChart = null;
+        let currentSensorId = null;
+
+        // Función para crear el HTML de un sensor
+        function createSensorCard(sensorId, data) {
+            const temperature = data.temperature !== null ? data.temperature.toFixed(1) : '--';
+            const lastUpdate = data.lastUpdate ? new Date(data.lastUpdate) : null;
+            const disconnectTimeout = data.disconnectTimeout || 15000;
+            
+            // Calcular el tiempo desde la última actualización
+            let timeSinceLastUpdate = 'Nunca';
+            let statusClass = 'disconnected';
+            let statusText = 'Desconectado';
+            
+            if (lastUpdate) {
+                const now = new Date();
+                const timeDiff = now - lastUpdate;
+                
+                // Actualizar el estado basado en el tiempo transcurrido
+                if (timeDiff <= disconnectTimeout) {
+                    statusClass = 'connected';
+                    statusText = 'Conectado';
+                } else if (timeDiff <= disconnectTimeout * 2) {
+                    statusClass = 'warning';
+                    statusText = 'Advertencia';
+                }
+                
+                // Formatear el tiempo transcurrido
+                if (timeDiff < 60000) { // menos de 1 minuto
+                    timeSinceLastUpdate = `${Math.floor(timeDiff / 1000)} segundos`;
+                } else if (timeDiff < 3600000) { // menos de 1 hora
+                    timeSinceLastUpdate = `${Math.floor(timeDiff / 60000)} minutos`;
+                } else { // más de 1 hora
+                    timeSinceLastUpdate = `${Math.floor(timeDiff / 3600000)} horas`;
+                }
+            }
+            
+            return `
+                <div class="sensor-card" id="sensor-${sensorId}" onclick="showTemperatureGraph('${sensorId}')">
+                    <div class="sensor-id">Sensor ${sensorId}</div>
+                    <div class="temperature-display ${statusClass === 'disconnected' ? 'out-of-range' : ''}">
+                        ${temperature}°C
+                    </div>
+                    <div class="status ${statusClass}">
+                        <i class="fas ${statusClass === 'connected' ? 'fa-check-circle' : 
+                                      statusClass === 'warning' ? 'fa-exclamation-circle' : 
+                                      'fa-times-circle'}"></i>
+                        ${statusText}
+                    </div>
+                    <div class="last-update">
+                        Última actualización: ${timeSinceLastUpdate}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Función para crear el HTML de un área
+        function createAreaSection(areaId, areaData) {
+            return `
+                <div class="area-section">
+                    <div class="area-header ${areaId}">
+                        <i class="fas ${areaData.icon}"></i>
+                        ${areaData.name}
+                    </div>
+                    <div class="sensors-grid" id="area-${areaId}">
+                        <!-- Los sensores se agregarán aquí -->
+                    </div>
+                </div>
+            `;
+        }
+
+        // Función para actualizar los datos de los sensores
+        async function updateSensors() {
+            try {
+                const response = await fetch('/api/temperature');
+                const data = await response.json();
+                
+                if (data.status === 'ok') {
+                    const areasContainer = document.getElementById('areasContainer');
+                    
+                    // Crear secciones de áreas si no existen
+                    if (!areasContainer.children.length) {
+                        Object.entries(areas).forEach(([areaId, areaData]) => {
+                            areasContainer.innerHTML += createAreaSection(areaId, areaData);
+                        });
+                    }
+                    
+                    // Actualizar sensores en cada área
+                    Object.entries(areas).forEach(([areaId, areaData]) => {
+                        const areaGrid = document.getElementById(`area-${areaId}`);
+                        if (areaGrid) {
+                            areaGrid.innerHTML = '';
+                            
+                            areaData.sensors.forEach(sensorNum => {
+                                const sensorId = `sensor_${sensorNum}`;
+                                const sensorData = data.sensors[sensorId] || {
+                                    temperature: null,
+                                    lastUpdate: null,
+                                    isDisconnected: true
+                                };
+                                areaGrid.innerHTML += createSensorCard(sensorId, sensorData);
+                            });
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('Error al actualizar los sensores:', error);
+            }
+        }
+
+        // Actualizar los datos cada 5 segundos
+        updateSensors();
+        setInterval(updateSensors, 5000);
+
+        // Configuración del menú y logo
+        const configButton = document.getElementById('configButton');
+        const configMenu = document.getElementById('configMenu');
+        const overlay = document.getElementById('overlay');
+
+        // Función para alternar el menú de configuración
+        function toggleConfigMenu() {
+            configMenu.classList.toggle('active');
+            overlay.classList.toggle('active');
+        }
+
+        // Event listeners para el menú de configuración
+        configButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleConfigMenu();
+        });
+
+        overlay.addEventListener('click', toggleConfigMenu);
+
+        // Eliminar splash-screen del DOM tras la animación
+        window.addEventListener('DOMContentLoaded', () => {
+            const splash = document.querySelector('.splash-screen');
+            splash.addEventListener('animationend', (e) => {
+                if (e.animationName === 'splashContainerFade') {
+                    splash.parentNode.removeChild(splash);
+                }
+            });
+        });
+
+        // Función para mostrar el gráfico
+        function showTemperatureGraph(sensorId) {
+            currentSensorId = sensorId;
+            const modal = document.getElementById('graphModal');
+            modal.classList.add('active');
+            
+            // Establecer fechas por defecto (último mes)
+            const endDate = new Date();
+            const startDate = new Date();
+            startDate.setMonth(startDate.getMonth() - 1);
+            
+            document.getElementById('startDate').value = startDate.toISOString().split('T')[0];
+            document.getElementById('endDate').value = endDate.toISOString().split('T')[0];
+            
+            // Cargar datos iniciales
+            loadTemperatureData(sensorId, startDate, endDate);
+        }
+
+        // Función para cargar datos de temperatura
+        async function loadTemperatureData(sensorId, startDate, endDate) {
+            try {
+                const response = await fetch(`/api/temperature/history? sensorId=${sensorId}&startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`);
+                const data = await response.json();
+                
+                if (data.status === 'ok') {
+                    updateTemperatureChart(data.temperatures);
+                }
+            } catch (error) {
+                console.error('Error al cargar datos de temperatura:', error);
+            }
+        }
+
+        // Función para actualizar el gráfico
+        function updateTemperatureChart(temperatures) {
+            const ctx = document.getElementById('temperatureChart').getContext('2d');
+            
+            if (temperatureChart) {
+                temperatureChart.destroy();
+            }
+            
+            temperatureChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: temperatures.map(t => new Date(t.timestamp).toLocaleString()),
+                    datasets: [{
+                        label: 'Temperatura (°C)',
+                        data: temperatures.map(t => t.temperature),
+                        borderColor: '#2c3e50',
+                        backgroundColor: 'rgba(44, 62, 80, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        title: {
+                            display: true,
+                            text: 'Historial de Temperaturas'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            title: {
+                                display: true,
+                                text: 'Temperatura (°C)'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Fecha y Hora'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Event Listeners para el modal de gráfica
+        document.getElementById('closeGraphModal').addEventListener('click', () => {
+            document.getElementById('graphModal').classList.remove('active');
+        });
+
+        document.getElementById('filterButton').addEventListener('click', () => {
+            const startDate = new Date(document.getElementById('startDate').value);
+            const endDate = new Date(document.getElementById('endDate').value);
+            loadTemperatureData(currentSensorId, startDate, endDate);
+        });
+
+        // Cerrar modal al hacer clic fuera
+        document.getElementById('graphModal').addEventListener('click', (e) => {
+            if (e.target === document.getElementById('graphModal')) {
+                document.getElementById('graphModal').classList.remove('active');
+            }
+        });
+    </script>
+</body>
+</html> 
